@@ -22,9 +22,21 @@ type DataContext interface {
 	GetUser(realm *data.Realm, userName string) *data.User
 	// GetUserById return realm user by id
 	GetUserById(realm *data.Realm, userId uuid.UUID) *data.User
-  // GetRealmUsers return all realm Users
+	// GetRealmUsers return all realm Users
 	// TODO(UMV): when we deal with a lot of Users we should query portion of Users instead of all
 	GetRealmUsers(realmName string) []data.User
+
+	CreateRealm()
+	CreateClient()
+	CreateUser()
+
+	UpdateRealm()
+	UpdateClient()
+	UpdateUser()
+
+	DeleteRealm()
+	DeleteClient()
+	DeleteUser()
 }
 
 // PrepareContext is a factory function that creates instance of DataContext

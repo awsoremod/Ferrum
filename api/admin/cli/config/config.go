@@ -26,7 +26,7 @@ type (
 		Namespace   string
 		Resource_id string
 		Params      string
-		Value       string
+		Value       []byte
 	}
 
 	configs struct {
@@ -43,6 +43,7 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	configs.DataSourceConfig.Options[config.Namespace] = configParameters.Namespace
 	cfg := &Config{
 		Parameters:       *configParameters,
 		DataSourceConfig: configs.DataSourceConfig,
@@ -68,7 +69,7 @@ func parseCmdParameters() *Parameters {
 		Namespace:   *Namespace,
 		Resource_id: *Resource_id,
 		Params:      *Params,
-		Value:       *Value,
+		Value:       []byte(*Value),
 	}
 
 	return configParameters

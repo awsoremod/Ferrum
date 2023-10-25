@@ -95,7 +95,6 @@ func (mn *FileDataManager) GetUserById(realm *data.Realm, userId uuid.UUID) *dat
 	return nil
 }
 
-
 // GetRealmUsers function for getting all Realm User
 /* This function get realm by name ant extract all its users
  * Parameters:
@@ -112,6 +111,10 @@ func (mn *FileDataManager) GetRealmUsers(realmName string) []data.User {
 		users[i] = data.CreateUser(u)
 	}
 	return users
+}
+
+func (mn *FileDataManager) CreateRealm(realmName string, realmValue []byte) error {
+	return nil // TODO (sia)
 }
 
 // loadData this function loads data from JSON file (dataFile) to serverData

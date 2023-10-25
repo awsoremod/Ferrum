@@ -118,15 +118,15 @@ func (mn *RedisDataManager) GetRealm(realmName string) *data.Realm {
  */
 func (mn *RedisDataManager) GetClient(realm *data.Realm, name string) *data.Client {
 	realmClientsKey := sf.Format(realmClientsKeyTemplate, mn.namespace, realm.Name)
-	// realm_%name%_clients contains array with configured clients ID (data.ExtendedIdentifier) for that realm
-	realmClients := getObjectFromRedis[[]data.ExtendedIdentifier](mn.redisClient, mn.ctx, mn.logger, RealmClients, realmClientsKey)
-	if realmClients == nil {
-		mn.logger.Error(sf.Format("There are no clients for realm: \"{0}\" in Redis", realm.Name))
+	realmClients := getObjectsListFromRedis[data.ExtendedIdentifier](mn.redisClient, mn.ctx, mn.logger, RealmClients, realmClientsKey)
+	if len(realmClients) == 0 {
+		mn.logger.Error(sf.Format("There are no clients for realm: \"{0}\" in Redis, BAD data config", realm.Clients))
 		return nil
 	}
+
 	realmHasClient := false
 	var clientId data.ExtendedIdentifier
-	for _, rc := range *realmClients {
+	for _, rc := range realmClients {
 		if rc.Name == name {
 			realmHasClient = true
 			clientId = rc
@@ -134,10 +134,12 @@ func (mn *RedisDataManager) GetClient(realm *data.Realm, name string) *data.Clie
 		}
 	}
 	if !realmHasClient {
+		// TODO (sia) debug не показывается
 		mn.logger.Debug(sf.Format("Realm: \"{0}\" doesn't have client : \"{1}\" in Redis", realm.Name, name))
 		return nil
 	}
-	clientKey := sf.Format(clientKeyTemplate, mn.namespace, clientId.ID)
+
+	clientKey := sf.Format(clientKeyTemplate, mn.namespace, clientId.Name)
 	client := getObjectFromRedis[data.Client](mn.redisClient, mn.ctx, mn.logger, Client, clientKey)
 	if client == nil {
 		mn.logger.Error(sf.Format("Realm: \"{0}\" has client: \"{1}\", that Redis does not have", realm.Name, name))
@@ -234,7 +236,7 @@ func (mn *RedisDataManager) GetRealmUsers(realmName string) []data.User {
 		return nil
 	}
 
-  // todo(UMV): probably we should organize batching here if we have many users i.e. 100K+
+	// todo(UMV): probably we should organize batching here if we have many users i.e. 100K+
 	userRedisKeys := make([]string, len(realmUsers))
 	for i, ru := range realmUsers {
 		userRedisKeys[i] = sf.Format(userKeyTemplate, mn.namespace, ru.Name)
@@ -288,6 +290,76 @@ func (mn *RedisDataManager) GetRealmClients(realmName string) []data.Client {
 	}
 
 	return clients
+}
+
+func (mn *RedisDataManager) CreateRealm(realmName string, realmValue []byte) (*data.Realm, error) {
+	// TODO не забыть про аналог транзакции, что делать если ошибка
+	var realm data.Realm
+	err := json.Unmarshal(realmValue, &realm)
+	if err != nil {
+		mn.logger.Error(sf.Format("An error occurred during Realm: \"{0}\" unmarshall", realmName))
+		return nil, err
+	}
+
+	if len(realm.Clients) != 0 {
+		bytesClients, err := json.Marshal(realm.Clients)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO возможно нужно проверять, что есть какие-то поля у clients
+
+		realmClientsKey := sf.Format(realmClientsKeyTemplate, mn.namespace, realmName)
+		redisIntCmd := mn.redisClient.Del(mn.ctx, realmClientsKey) // TODO уточнить
+		if redisIntCmd.Err() != nil {
+			return nil, redisIntCmd.Err()
+		}
+		redisIntCmd = mn.redisClient.RPush(mn.ctx, realmClientsKey, string(bytesClients))
+		if redisIntCmd.Err() != nil {
+			return nil, redisIntCmd.Err()
+		}
+
+		for _, client := range realm.Clients {
+			bytesClient, err := json.Marshal(client)
+			if err != nil {
+				return nil, err
+			}
+			clientKey := sf.Format(clientKeyTemplate, mn.namespace, realmName)
+			if err := setString(mn.redisClient, mn.ctx, mn.logger, Client, clientKey, string(bytesClient)); err != nil {
+				return nil, err
+			}
+		}
+
+		realm.Clients = []data.Client{}
+	}
+
+	if len(realm.Users) != 0 {
+		// TODO тоже самое сделать
+
+		realm.Users = []any{}
+	}
+
+	realmKey := sf.Format(realmKeyTemplate, mn.namespace, realmName)
+	if err := setString(mn.redisClient, mn.ctx, mn.logger, Realm, realmKey, string(realmValue)); err != nil {
+		return nil, err
+	}
+	// TODO
+
+	return &realm, nil // TODO нет смысла возвращать реалм без client и user. Нужно наверное делать глубокую копию
+}
+
+func (mn *RedisDataManager) CreateRealmClients() error {
+}
+
+func setString(redisClient *redis.Client, ctx context.Context, logger *logging.AppLogger,
+	objName objectType, objKey string, objValue string,
+) error {
+	statusCmd := redisClient.Set(ctx, objKey, objValue, 0)
+	if statusCmd.Err() != nil {
+		logger.Warn(sf.Format("An error occurred during set {0}: \"{1}\": \"{2}\" from Redis server", objName, objKey, objValue))
+		return statusCmd.Err()
+	}
+	return nil
 }
 
 // getObjectFromRedis is a method that DOESN'T work with List type object, only a String object type

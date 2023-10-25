@@ -26,17 +26,17 @@ type DataContext interface {
 	// TODO(UMV): when we deal with a lot of Users we should query portion of Users instead of all
 	GetRealmUsers(realmName string) []data.User
 
-	CreateRealm()
-	CreateClient()
-	CreateUser()
+	CreateRealm(realmName string, realmValue []byte) error
+	// CreateClient()
+	// CreateUser()
 
-	UpdateRealm()
-	UpdateClient()
-	UpdateUser()
+	// UpdateRealm()
+	// UpdateClient()
+	// UpdateUser()
 
-	DeleteRealm()
-	DeleteClient()
-	DeleteUser()
+	// DeleteRealm()
+	// DeleteClient()
+	// DeleteUser()
 }
 
 // PrepareContext is a factory function that creates instance of DataContext

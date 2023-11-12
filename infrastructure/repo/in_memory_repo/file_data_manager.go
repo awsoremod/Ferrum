@@ -1,7 +1,10 @@
 package managers
 
+// TODO (sia) переименовать файл в inMemory
+
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 
 	"github.com/google/uuid"
@@ -24,11 +27,10 @@ type FileDataManager struct {
  *    serverData already loaded data.ServerData from Json file in memory
  * Returns: context and error (currently is nil)
  */
-func PrepareFileDataContextUsingData(serverData *data.ServerData) (DataContext, error) {
+func PrepareFileDataContextUsingData(serverData *data.ServerData) (*FileDataManager, error) {
 	// todo(UMV): todo provide an error handling
 	mn := &FileDataManager{serverData: *serverData}
-	dc := DataContext(mn)
-	return dc, nil
+	return mn, nil
 }
 
 // GetRealm function for getting Realm by name
@@ -37,14 +39,15 @@ func PrepareFileDataContextUsingData(serverData *data.ServerData) (DataContext, 
  *     - realmName - name of a realm
  * Returns: Realm or nil (if Realm isn't found0
  */
-func (mn *FileDataManager) GetRealm(realmName string) *data.Realm {
+func (mn *FileDataManager) GetRealm(realmName string) (*data.Realm, error) {
 	for _, e := range mn.serverData.Realms {
 		// case-sensitive comparison, myapp and MyApP are different realms
 		if e.Name == realmName {
-			return &e
+			return &e, nil
 		}
 	}
-	return nil
+
+	return nil, fmt.Errorf("not found") // TODO(ias)
 }
 
 // GetClient function for getting Realm Client by name
@@ -54,13 +57,19 @@ func (mn *FileDataManager) GetRealm(realmName string) *data.Realm {
  *     - name - name of a client
  * Returns: Client or nil (if Client isn't found0
  */
-func (mn *FileDataManager) GetClient(realm *data.Realm, name string) *data.Client {
+func (mn *FileDataManager) GetClient(realmName string, clientName string) (*data.Client, error) {
+	realm, err := mn.GetRealm(realmName) // todo(sia): check
+	if err != nil {
+		return nil, err
+	}
+
 	for _, c := range realm.Clients {
-		if c.Name == name {
-			return &c
+		if c.Name == clientName {
+			return &c, nil
 		}
 	}
-	return nil
+
+	return nil, fmt.Errorf("not found") // TODO(sia)
 }
 
 // GetUser function for getting Realm User by userName
@@ -70,51 +79,57 @@ func (mn *FileDataManager) GetClient(realm *data.Realm, name string) *data.Clien
  *     - userName - name of a user
  * Returns: realm user or nil
  */
-func (mn *FileDataManager) GetUser(realm *data.Realm, userName string) *data.User {
+func (mn *FileDataManager) GetUser(realmName string, userName string) (*data.User, error) {
+	realm, err := mn.GetRealm(realmName) // todo(sia): check
+	if err != nil {
+		return nil, err
+	}
+
 	for _, u := range realm.Users {
 		user := data.CreateUser(u)
 		if user.GetUsername() == userName {
-			return &user
+			return &user, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("not found") // TODO(sia)
 }
 
 // GetUserById function for getting Realm User by Id
 /* same functions as GetUser but uses userId to search instead of username
  */
-func (mn *FileDataManager) GetUserById(realm *data.Realm, userId uuid.UUID) *data.User {
+func (mn *FileDataManager) GetUserById(realmName string, userId uuid.UUID) (*data.User, error) {
+	realm, err := mn.GetRealm(realmName) // todo(ias): check
+	if err != nil {
+		return nil, err
+	}
+
 	for _, u := range realm.Users {
 		user := data.CreateUser(u)
 		if user.GetId() == userId {
-			return &user
+			return &user, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("not found") // TODO(sia)
 }
 
-// GetRealmUsers function for getting all Realm User
+// GetUsersForRealm function for getting all Realm User
 /* This function get realm by name ant extract all its users
  * Parameters:
  *     - realmName - name of a realm
  * Returns: slice of users
  */
-func (mn *FileDataManager) GetRealmUsers(realmName string) []data.User {
-	realm := mn.GetRealm(realmName)
-	if realm == nil {
-		return nil
+func (mn *FileDataManager) GetUsersForRealm(realmName string) ([]data.User, error) {
+	realm, err := mn.GetRealm(realmName)
+	if err != nil {
+		return nil, err
 	}
 	users := make([]data.User, len(realm.Users))
 	for i, u := range realm.Users {
 		users[i] = data.CreateUser(u)
 	}
-	return users
-}
-
-func (mn *FileDataManager) CreateRealm(realmName string, realmValue []byte) error {
-	return nil // TODO (sia)
+	return users, nil
 }
 
 // loadData this function loads data from JSON file (dataFile) to serverData

@@ -2,6 +2,10 @@ package rest
 
 import (
 	"encoding/base64"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
@@ -10,9 +14,6 @@ import (
 	"github.com/wissance/Ferrum/errors"
 	"github.com/wissance/Ferrum/globals"
 	"github.com/wissance/stringFormatter"
-	"net/http"
-	"strings"
-	"time"
 )
 
 // IssueNewToken this function is a Http Request Handler that is responsible for issue New or Refresh existing tokens
@@ -48,7 +49,7 @@ func (wCtx *WebApiContext) IssueNewToken(respWriter http.ResponseWriter, request
 				wCtx.Logger.Debug("New token issue: body is bad (unable to unmarshal to dto.TokenGenerationData)")
 				result = dto.ErrorDetails{Msg: errors.BadBodyForTokenGenerationMsg}
 			} else {
-				var decoder = schema.NewDecoder()
+				decoder := schema.NewDecoder()
 				err = decoder.Decode(&tokenGenerationData, request.PostForm)
 				if err != nil {
 					// todo (UMV): log events
@@ -126,8 +127,10 @@ func (wCtx *WebApiContext) IssueNewToken(respWriter http.ResponseWriter, request
 							globals.ProfileEmailScope, session)
 						(*wCtx.Security).AssignTokens(realm, userId, &accessToken, &refreshToken)
 						// 6. Assign token to result
-						result = dto.Token{AccessToken: accessToken, Expires: duration, RefreshToken: refreshToken,
-							RefreshExpires: refreshDuration, TokenType: string(BearerToken), NotBeforePolicy: 0, Session: sessionId.String()}
+						result = dto.Token{
+							AccessToken: accessToken, Expires: duration, RefreshToken: refreshToken,
+							RefreshExpires: refreshDuration, TokenType: string(BearerToken), NotBeforePolicy: 0, Session: sessionId.String(),
+						}
 
 					}
 				}
@@ -178,7 +181,7 @@ func (wCtx *WebApiContext) GetUserInfo(respWriter http.ResponseWriter, request *
 						wCtx.Logger.Debug("Get userinfo: token expired")
 						result = dto.ErrorDetails{Msg: errors.InvalidTokenMsg, Description: errors.InvalidTokenDesc}
 					} else {
-						user := (*wCtx.DataProvider).GetUserById(realmPtr, session.UserId)
+						user := (*wCtx.DataProvider).GetUserById(realmPtr.Name, session.UserId)
 						status = http.StatusOK
 						if user != nil {
 							result = (*user).GetUserInfo()

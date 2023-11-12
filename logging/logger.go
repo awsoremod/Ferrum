@@ -2,13 +2,14 @@ package logging
 
 import (
 	"fmt"
-	"github.com/mattn/go-colorable"
-	"github.com/wissance/Ferrum/config"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/mattn/go-colorable"
+	"github.com/wissance/Ferrum/config"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/ttys3/rotatefilehook"
@@ -32,9 +33,10 @@ type AppLogger struct {
 	loggerCfg *config.LoggingConfig
 }
 
-//AppLogger
+// AppLogger
 
 func CreateLogger(cfg *config.LoggingConfig) *AppLogger {
+	// TDOO(sia) check nil
 	return &AppLogger{loggerCfg: cfg, logger: log.New()}
 }
 

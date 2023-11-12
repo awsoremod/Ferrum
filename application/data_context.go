@@ -15,28 +15,36 @@ import (
 // now contains only set of Get methods, during implementation admin CLI should be expanded to create && update entities
 type DataContext interface {
 	// GetRealm returns realm by name (unique)
-	GetRealm(realmName string) *data.Realm
+	GetRealm(realmName string) (*data.Realm, error)
 	// GetClient returns realm client by name (client name is also unique in a realm)
-	GetClient(realm *data.Realm, name string) *data.Client
+	// GetClient(clientName string) (*data.Client, error)
+	// GetRealmClient(realmName string, clientName string) (*data.ExtendedIdentifier, error)
+	// GetRealmClients(realmName string) []data.ExtendedIdentifier
+	// GetClientsForRealm(realmName string) []data.Client
 	// GetUser return realm user (consider what to do with Federated users) by name
-	GetUser(realm *data.Realm, userName string) *data.User
+	GetUser(userName string) (*data.User, error)
+	// GetRealmUser(realmName string, clientName string) (*data.ExtendedIdentifier, error)
+	// GetRealmUsers(realmName string) []data.ExtendedIdentifier
+	// GetUsersForRealm(realmName string) []data.User
 	// GetUserById return realm user by id
-	GetUserById(realm *data.Realm, userId uuid.UUID) *data.User
-	// GetRealmUsers return all realm Users
+	GetUserById(realmName string, userId uuid.UUID) (*data.User, error)
+	// GetUsersForRealm return all realm Users
 	// TODO(UMV): when we deal with a lot of Users we should query portion of Users instead of all
-	GetRealmUsers(realmName string) []data.User
 
-	CreateRealm(realmName string, realmValue []byte) error
-	// CreateClient()
-	// CreateUser()
+	// CreateRealm(realmValue []byte) (*data.Realm, error)
+	// CreateClient(clientValue []byte) (*data.Client, error)
+	// AddClientToRealm(realmName string, clientName string) error
+	// CreateUser(userValue []byte) (string, error)
+	// AddUserToRealm(realmName string, userName string) error
 
-	// UpdateRealm()
-	// UpdateClient()
-	// UpdateUser()
+	// DeleteRealm(realmName string) error
+	// DeleteClient(clientName string) error
+	// DeleteRealmClient(realmName string, clientName string) error
+	// DeleteUser(userName string) error
+	// DeleteRealmUser(realmName string, userName string) error
 
-	// DeleteRealm()
-	// DeleteClient()
-	// DeleteUser()
+	// UpdateClient(clientName string, clientValue []byte) (*data.Client, error)
+	// UpdateUser(userName string, userValue []byte) (string, error)
 }
 
 // PrepareContext is a factory function that creates instance of DataContext
@@ -57,6 +65,7 @@ func PrepareContext(dataSourceCfg *config.DataSourceConfig, dataFile *string, lo
 	case config.FILE:
 		if dataFile == nil {
 			err = errors.New("data file is nil")
+			logger.Error(err.Error())
 		}
 		absPath, pathErr := filepath.Abs(*dataFile)
 		if pathErr != nil {
@@ -73,11 +82,11 @@ func PrepareContext(dataSourceCfg *config.DataSourceConfig, dataFile *string, lo
 			msg := stringFormatter.Format("An error occurred during data loading: {0}", err.Error())
 			logger.Error(msg)
 		}
-		dc = DataContext(mn)
+		dc = mn
 
 	case config.REDIS:
 		if dataSourceCfg.Type == config.REDIS {
-			dc, err = CreateRedisDataManager(dataSourceCfg, logger)
+			dc, err = NewRedisDataManager(dataSourceCfg, logger)
 		}
 		// todo implement other data sources
 	}

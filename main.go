@@ -6,11 +6,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/wissance/Ferrum/application"
-	"github.com/wissance/stringFormatter"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/wissance/Ferrum/internal/application"
+	"github.com/wissance/stringFormatter"
 )
 
 const defaultConfig = "./config.json"
@@ -27,18 +29,14 @@ var configFile = flag.String("config", defaultConfig, "--config ./config_w_redis
  */
 func main() {
 	flag.Parse()
-	osSignal := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-	signal.Notify(osSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	app := application.CreateAppWithConfigs(*configFile)
+	app := application.NewAppWithConfigs(*configFile)
 	res, initErr := app.Init()
 	logger := app.GetLogger()
 	if initErr != nil {
 		logger.Error("An error occurred during app init, terminating the app")
-		os.Exit(-1)
-	} else {
-		logger.Info("Application was successfully initialized")
+		log.Fatal()
 	}
+	logger.Info("Application was successfully initialized")
 
 	res, err := app.Start()
 	if !res {
@@ -48,10 +46,13 @@ func main() {
 		logger.Info("Application was successfully started")
 	}
 
+	osSignal := make(chan os.Signal, 1)
+	signal.Notify(osSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	done := make(chan bool, 1)
 	// this goroutine handles OS signals and generate signal to stop the app
 	go func() {
 		sig := <-osSignal
-		//logging.InfoLog(stringFormatter.Format("Got signal from OS: {0}", sig))
+		// logging.InfoLog(stringFormatter.Format("Got signal from OS: {0}", sig))
 		logger.Info(stringFormatter.Format("Got signal from OS: \"{0}\", stopping", sig))
 		done <- true
 	}()
@@ -65,5 +66,4 @@ func main() {
 	} else {
 		logger.Info("Application was successfully stopped")
 	}
-
 }
